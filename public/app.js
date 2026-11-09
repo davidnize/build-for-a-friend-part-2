@@ -19,6 +19,7 @@
   var spotlightItem = null;
   var onlineTimer = null;
   var onlineAbort = null;
+  var catalogGen = 0;
   var skipJikan = false;
 
   var filtersEl = document.getElementById("filters");
@@ -49,12 +50,6 @@
     loadMoreHarem();
   });
   document.getElementById("spotlight").addEventListener("click", onSpotlightAdd);
-  if (window.IntersectionObserver) {
-    var moreObserver = new IntersectionObserver(function (entries) {
-      if (entries.some(function (entry) { return entry.isIntersecting; })) loadMoreHarem();
-    }, { rootMargin: "300px" });
-    moreObserver.observe(document.getElementById("load-more"));
-  }
   document.getElementById("logout").addEventListener("click", onLogout);
   document.getElementById("auth-form").addEventListener("submit", onAuthSubmit);
   document.getElementById("show-login").addEventListener("click", function () {
@@ -538,6 +533,7 @@
 
   function startCatalog(mode, query) {
     abortOnline();
+    var gen = ++catalogGen;
     onlineState = {
       phase: "loading",
       query: query,
@@ -551,7 +547,7 @@
     renderOnline();
     api(catalogPageUrl(1))
       .then(function (data) {
-        if (onlineState.mode !== mode) return;
+        if (gen !== catalogGen || onlineState.mode !== mode) return;
         onlineState.phase = data.items && data.items.length ? "results" : "empty";
         onlineState.results = data.items || [];
         onlineState.page = data.page || 1;
@@ -561,7 +557,7 @@
         renderOnline();
       })
       .catch(function () {
-        if (onlineState.mode !== mode) return;
+        if (gen !== catalogGen || onlineState.mode !== mode) return;
         onlineState.phase = "error";
         onlineState.loadingMore = false;
         onlineState.results = [];
@@ -573,13 +569,14 @@
     if (!onlineState.hasMore || onlineState.loadingMore) return;
     if (onlineState.mode !== "harem" && onlineState.mode !== "romance" && onlineState.mode !== "movies" && onlineState.mode !== "search") return;
     var mode = onlineState.mode;
+    var gen = catalogGen;
     onlineState.loadingMore = true;
     var button = document.getElementById("load-more");
     button.textContent = "Loading…";
     var next = onlineState.page + 1;
     api(catalogPageUrl(next))
       .then(function (data) {
-        if (onlineState.mode !== mode) return;
+        if (gen !== catalogGen || onlineState.mode !== mode) return;
         var start = onlineState.results.length;
         var items = data.items || [];
         onlineState.results = onlineState.results.concat(items);

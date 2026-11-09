@@ -249,7 +249,6 @@ h1 em {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-  min-height: 120px;
 }
 
 .card {
@@ -742,8 +741,8 @@ h1 em {
       "account"
       "spotlight"
       "tools"
-      "online"
       "cards"
+      "online"
       "panel";
   }
 
@@ -753,6 +752,13 @@ h1 em {
 
   .search-row {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 0;
   }
 
   .online-go,

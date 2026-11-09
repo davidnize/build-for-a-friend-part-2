@@ -117,6 +117,30 @@ async function runFlow(width, height) {
       }
     })()`);
 
+    let shelfShot = null;
+    if (width <= 430) {
+      const shelf = await evaluate(`(() => {
+        document.getElementById("filters").scrollIntoView({block:"start"});
+        const input = document.querySelector(".search input");
+        const button = document.getElementById("search-online");
+        const gap = Math.round(button.getBoundingClientRect().top - input.getBoundingClientRect().bottom);
+        const cards = [...document.querySelectorAll("#list .card")];
+        return {
+          gap: gap,
+          shelf: cards.length,
+          cardH: cards[0] ? Math.round(cards[0].getBoundingClientRect().height) : 0,
+          status: document.getElementById("status").textContent,
+          pressed: document.querySelector('.filter[aria-pressed="true"]').getAttribute("data-category")
+        };
+      })()`);
+      assert(shelf.pressed === "Harem", "Harem tab should be selected, got " + shelf.pressed);
+      assert(shelf.shelf === 5, "Harem tab should render 5 shelf titles, got " + shelf.shelf);
+      assert(shelf.cardH > 40, "Harem shelf card has no height");
+      assert(shelf.gap < 40, "search box and buttons should sit together, gap was " + shelf.gap);
+      assert(shelf.status.indexOf("5") !== -1, "status should mention the 5 titles, got " + shelf.status);
+      shelfShot = await send("Page.captureScreenshot", { format: "png" }, sessionId);
+    }
+
     await evaluate(`document.getElementById("browse-harem").click()`);
     const harem = await waitFor(evaluate, functionBody('document.getElementById("online-heading").textContent === "Every harem anime" && document.querySelectorAll(".online-card").length === 100'));
     assert(harem.heading === "Every harem anime", "browse harem heading");
@@ -154,7 +178,7 @@ async function runFlow(width, height) {
     assert(all.heading === "Every romance anime", "All tab should show the full romance list");
     assert(all.pressed === "All", "All tab should look selected");
 
-    return { user: user, shot: shot.data, summary: movies };
+    return { user: user, shot: (shelfShot || shot).data, summary: movies };
   });
 }
 
@@ -203,7 +227,7 @@ async function main() {
       }
       if (i === 39) throw new Error("server did not start");
     }
-    const phone = await runFlow(375, 812);
+    const phone = await runFlow(390, 812);
     require("fs").writeFileSync("/tmp/tab-after-browse-phone.png", Buffer.from(phone.shot, "base64"));
     const desktop = await runFlow(1280, 900);
     require("fs").writeFileSync("/tmp/tab-after-browse-desktop.png", Buffer.from(desktop.shot, "base64"));
