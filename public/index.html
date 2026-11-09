@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Your Harem Hunter</title>
+    <meta name="description" content="Your Harem Hunter. Find every harem anime, ranked best to worst, and keep a private list." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23140b16'/%3E%3Cpath d='M16 25s-7.2-4.4-7.2-9.2A4.1 4.1 0 0 1 16 12a4.1 4.1 0 0 1 7.2 3.8C23.2 20.6 16 25 16 25z' fill='%23ff5a95'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,560;1,9..144,520&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <p id="boot" class="boot">Loading your shelf…</p>
+
+    <main id="auth-screen" class="auth-screen" hidden>
+      <form id="auth-form" class="auth-card" data-mode="login" novalidate>
+        <p class="eyebrow">Your Harem Hunter</p>
+        <h1><em>Find every</em> harem anime</h1>
+        <p class="lede">Ranked best to worst. A new account starts with a private list.</p>
+        <div class="auth-toggle" role="group" aria-label="Account action">
+          <button id="show-login" type="button" aria-pressed="true">Log in</button>
+          <button id="show-signup" type="button" aria-pressed="false">Sign up</button>
+        </div>
+        <label class="field">
+          <span>Username</span>
+          <input id="auth-username" name="username" type="text" maxlength="24" autocomplete="username" placeholder="e.g. hori" required />
+        </label>
+        <label class="field">
+          <span>Passphrase</span>
+          <input id="auth-passphrase" name="passphrase" type="password" minlength="8" maxlength="72" autocomplete="current-password" placeholder="At least 8 characters" required />
+        </label>
+        <p id="auth-error" class="form-error" role="alert" hidden></p>
+        <button id="auth-submit" class="primary" type="submit">Log in</button>
+      </form>
+    </main>
+
+    <div id="shelf" class="page" hidden>
+      <header class="hero">
+        <p class="eyebrow">Your Harem Hunter</p>
+        <h1><em>Find every</em> harem anime</h1>
+        <p class="lede">Ranked from best to worst. Save the ones you want. Your list stays on your account.</p>
+      </header>
+
+      <section id="spotlight" class="spotlight" aria-live="polite"></section>
+
+      <div class="account">
+        <p class="account-name">Signed in as <strong id="current-user"></strong></p>
+        <button id="logout" type="button">Log out</button>
+      </div>
+
+      <aside class="panel" aria-labelledby="add-heading">
+        <form id="add-form" novalidate>
+          <h2 id="add-heading">Add an anime</h2>
+          <p class="form-intro">Title and category are required. Year and note can wait.</p>
+
+          <label class="field">
+            <span>Title</span>
+            <input id="title" name="title" type="text" maxlength="120" placeholder="e.g. Nisekoi" autocomplete="off" required />
+          </label>
+
+          <label class="field">
+            <span>Category</span>
+            <select id="category" name="category" required>
+              <option selected>Harem</option>
+              <option>Slice of Life</option>
+              <option>Love Triangle</option>
+              <option>Movies</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Year optional</span>
+            <input id="year" name="year" type="text" inputmode="numeric" maxlength="4" placeholder="e.g. 2016" autocomplete="off" />
+          </label>
+
+          <label class="field">
+            <span>Note optional</span>
+            <textarea id="note" name="note" rows="3" maxlength="240" placeholder="A one-line description"></textarea>
+          </label>
+
+          <p id="form-error" class="form-error" role="alert" hidden></p>
+          <button class="primary" type="submit">Add to list</button>
+          <p class="form-note">Reset puts the original shelf back and removes titles you added.</p>
+          <button id="reset-shelf" class="ghost" type="button">Reset to defaults</button>
+        </form>
+      </aside>
+
+      <div class="tools">
+        <div id="import-banner" class="import" hidden>
+          <p>This browser still has a shelf from before accounts. Use that shelf instead of the starter list?</p>
+          <div class="import-actions">
+            <button id="import-yes" class="primary" type="button">Use saved shelf</button>
+            <button id="import-no" class="ghost" type="button">Keep starter list</button>
+          </div>
+        </div>
+        <div id="filters" class="filters" role="group" aria-label="Filter by category"></div>
+        <div class="search-row">
+          <label class="search">
+            <span class="visually-hidden">Search your shelf</span>
+            <input id="search" type="search" placeholder="Search your list, or type Harem" autocomplete="off" />
+          </label>
+          <button id="search-online" class="online-go" type="button">Search online</button>
+          <button id="browse-harem" class="browse-harem" type="button">Browse all harem</button>
+        </div>
+        <p id="status" class="status" aria-live="polite">Showing all 20 titles.</p>
+      </div>
+
+      <section id="online" class="online" aria-labelledby="online-heading">
+        <h2 id="online-heading">Search online</h2>
+        <p id="online-status" class="online-status">
+          Find a title on MyAnimeList, then add it to a category. The shelf below filters as you type.
+        </p>
+        <div id="online-results" class="online-results"></div>
+        <button id="load-more" class="load-more" type="button" hidden>Load more</button>
+      </section>
+
+      <div id="list" class="cards" aria-live="polite"></div>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

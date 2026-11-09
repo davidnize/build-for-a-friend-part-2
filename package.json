@@ -1,0 +1,20 @@
+{
+  "name": "romance-anime-list",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Find every harem anime, ranked best to worst, with a private list per account.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/privacy.js && node test/harem.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "pg": "^8.16.0"
+  }
+}

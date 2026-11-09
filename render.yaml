@@ -1,0 +1,27 @@
+# Render Blueprint: free web service plus a free Postgres database.
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: romance-anime-list
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: romance-anime-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+
+databases:
+  - name: romance-anime-db
+    plan: free
+    region: oregon
+    databaseName: romance_anime
