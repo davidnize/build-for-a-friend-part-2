@@ -8,7 +8,7 @@ const rateLimit = require("express-rate-limit");
 const bcrypt = require("bcryptjs");
 const { Pool } = require("pg");
 const { CATEGORIES, SEED } = require("./seed");
-const { fetchCatalog, pickSpotlight } = require("./harem");
+const { fetchCatalog, pickSpotlight, CATALOG_VERSION } = require("./harem");
 
 const PORT = Number(process.env.PORT) || 3000;
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -57,6 +57,8 @@ app.put("/api/anime", asyncRoute(requireUser), asyncRoute(replaceAnime));
 app.delete("/api/anime/:id", asyncRoute(requireUser), asyncRoute(deleteAnime));
 app.get("/api/harem/spotlight", asyncRoute(haremSpotlight));
 app.get("/api/harem", asyncRoute(haremPage));
+app.get("/api/romance", asyncRoute(romancePage));
+app.get("/api/catalog/search", asyncRoute(catalogSearch));
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -137,6 +139,15 @@ async function setupDatabase() {
       refreshed_at TIMESTAMPTZ NOT NULL
     )
   `);
+  await pool.query("ALTER TABLE harem_catalog ADD COLUMN IF NOT EXISTS harem BOOLEAN NOT NULL DEFAULT FALSE");
+  await pool.query("ALTER TABLE harem_catalog ADD COLUMN IF NOT EXISTS alt_title TEXT");
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS catalog_meta (
+      id INTEGER PRIMARY KEY,
+      version INTEGER NOT NULL,
+      refreshed_at TIMESTAMPTZ NOT NULL
+    )
+  `);
 }
 
 const HAREM_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -145,9 +156,9 @@ let haremRefresh = null;
 async function haremSpotlight(req, res) {
   await ensureHaremCatalog();
   const ranked = await pool.query(
-    `SELECT mal_id, title, score, type, year, episodes, synopsis, poster, ecchi
+    `SELECT mal_id, title, score, type, year, episodes, synopsis, poster, ecchi, harem
      FROM harem_catalog
-     WHERE score IS NOT NULL
+     WHERE harem = TRUE AND score IS NOT NULL
      ORDER BY position ASC
      LIMIT 52`
   );
@@ -157,18 +168,37 @@ async function haremSpotlight(req, res) {
 }
 
 async function haremPage(req, res) {
+  await catalogResponse(req, res, "WHERE harem = TRUE");
+}
+
+async function romancePage(req, res) {
+  await catalogResponse(req, res, "");
+}
+
+async function catalogSearch(req, res) {
+  const query = String(req.query.q || "").trim();
+  if (query.length < 2) return res.status(400).json({ error: "Type at least 2 letters." });
+  const like = "%" + query.replace(/[\\%_]/g, "\\$&") + "%";
+  await catalogResponse(req, res, "WHERE (title ILIKE $EXTRA ESCAPE '\\' OR alt_title ILIKE $EXTRA ESCAPE '\\')", [like]);
+}
+
+async function catalogResponse(req, res, whereSql, extraParams) {
   await ensureHaremCatalog();
   const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
   const page = Math.max(Number(req.query.page) || 1, 1);
   const offset = (page - 1) * limit;
-  const totalResult = await pool.query("SELECT COUNT(*)::int AS total FROM harem_catalog");
+  const extras = extraParams || [];
+  const where = whereSql.replace(/\$EXTRA/g, "$" + (extras.length ? "1" : "1"));
+  const totalResult = await pool.query("SELECT COUNT(*)::int AS total FROM harem_catalog " + where, extras);
   const total = totalResult.rows[0].total;
+  const limitPos = extras.length + 1;
   const rows = await pool.query(
-    `SELECT mal_id, title, score, type, year, episodes, synopsis, poster, ecchi
+    `SELECT mal_id, title, score, type, year, episodes, synopsis, poster, ecchi, harem
      FROM harem_catalog
+     ${where}
      ORDER BY position ASC
-     LIMIT $1 OFFSET $2`,
-    [limit, offset]
+     LIMIT $${limitPos} OFFSET $${limitPos + 1}`,
+    extras.concat([limit, offset])
   );
   res.json({
     page: page,
@@ -189,19 +219,26 @@ function rowToHarem(row) {
     episodes: row.episodes,
     synopsis: row.synopsis,
     poster: row.poster,
-    ecchi: row.ecchi
+    ecchi: row.ecchi,
+    harem: row.harem === true
   };
 }
 
+async function catalogIsCurrent(runner) {
+  const meta = await runner.query("SELECT version, refreshed_at FROM catalog_meta WHERE id = 1");
+  const row = meta.rows[0];
+  if (!row || row.version !== CATALOG_VERSION) return { fresh: false, versionOk: false };
+  const fresh = Date.now() - new Date(row.refreshed_at).getTime() < HAREM_MAX_AGE_MS;
+  return { fresh: fresh, versionOk: true };
+}
+
 async function ensureHaremCatalog() {
-  const found = await pool.query("SELECT COUNT(*)::int AS total, MAX(refreshed_at) AS refreshed_at FROM harem_catalog");
-  const total = found.rows[0].total;
-  const refreshedAt = found.rows[0].refreshed_at ? new Date(found.rows[0].refreshed_at).getTime() : 0;
-  const fresh = total > 0 && Date.now() - refreshedAt < HAREM_MAX_AGE_MS;
-  if (fresh) return;
-  if (total > 0) {
+  const state = await catalogIsCurrent(pool);
+  if (state.fresh) return;
+  const count = await pool.query("SELECT COUNT(*)::int AS total FROM harem_catalog");
+  if (state.versionOk && count.rows[0].total > 0) {
     refreshHaremCatalog().catch(function (err) {
-      console.error("Harem refresh failed", err);
+      console.error("Catalog refresh failed", err);
     });
     return;
   }
@@ -221,11 +258,10 @@ async function writeHaremCatalog() {
   const client = await pool.connect();
   try {
     await client.query("SELECT pg_advisory_lock(354235)");
-    const found = await client.query("SELECT COUNT(*)::int AS total, MAX(refreshed_at) AS refreshed_at FROM harem_catalog");
-    const refreshedAt = found.rows[0].refreshed_at ? new Date(found.rows[0].refreshed_at).getTime() : 0;
-    if (found.rows[0].total > 0 && Date.now() - refreshedAt < HAREM_MAX_AGE_MS) return;
+    const state = await catalogIsCurrent(client);
+    if (state.fresh) return;
     const items = await fetchCatalog();
-    if (!items.length) throw new Error("Harem catalog came back empty");
+    if (!items.length) throw new Error("Romance catalog came back empty");
     const refreshed = new Date();
     await client.query("BEGIN");
     await client.query("DELETE FROM harem_catalog");
@@ -233,11 +269,12 @@ async function writeHaremCatalog() {
       const item = items[i];
       await client.query(
         `INSERT INTO harem_catalog
-          (mal_id, title, score, type, year, episodes, synopsis, poster, rating, ecchi, genre_ids, position, refreshed_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          (mal_id, title, alt_title, score, type, year, episodes, synopsis, poster, rating, ecchi, harem, genre_ids, position, refreshed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
         [
           item.malId,
           item.title,
+          item.altTitle || null,
           item.score,
           item.type,
           item.year,
@@ -246,14 +283,22 @@ async function writeHaremCatalog() {
           item.poster,
           item.rating,
           item.ecchi,
+          item.harem === true,
           item.genreIds,
           i,
           refreshed
         ]
       );
     }
+    await client.query(
+      `INSERT INTO catalog_meta (id, version, refreshed_at)
+       VALUES (1, $1, $2)
+       ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version, refreshed_at = EXCLUDED.refreshed_at`,
+      [CATALOG_VERSION, refreshed]
+    );
     await client.query("COMMIT");
-    console.log("Cached " + items.length + " harem titles");
+    const haremCount = items.filter(function (item) { return item.harem; }).length;
+    console.log("Cached " + items.length + " romance titles (" + haremCount + " harem)");
   } catch (err) {
     try {
       await client.query("ROLLBACK");

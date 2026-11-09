@@ -156,13 +156,14 @@ h1 em {
 
 .search-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: stretch;
 }
 
 .search {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 260px;
+  min-width: min(100%, 220px);
 }
 
 .online-go {
@@ -176,18 +177,29 @@ h1 em {
 }
 
 .online-go:hover,
-.browse-harem:hover {
+.browse-harem:hover,
+.browse-romance:hover {
   filter: brightness(1.06);
 }
 
-.browse-harem {
+.browse-harem,
+.browse-romance {
   border: 0;
-  background: var(--pink);
-  color: #fff;
   border-radius: 12px;
   padding: 0 16px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.browse-harem {
+  background: var(--pink);
+  color: #fff;
+}
+
+.browse-romance {
+  border: 1px solid rgba(255, 122, 170, 0.75);
+  background: rgba(255, 90, 149, 0.14);
+  color: #fff;
 }
 
 .search input,
@@ -680,6 +692,20 @@ h1 em {
   line-height: 1.05;
 }
 
+.badge-harem {
+  display: inline-block;
+  margin-left: 8px;
+  background: var(--pink);
+  color: #2a1020;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
 .badge-ecchi {
   display: inline-block;
   margin-left: 8px;
@@ -730,7 +756,8 @@ h1 em {
   }
 
   .online-go,
-  .browse-harem {
+  .browse-harem,
+  .browse-romance {
     padding: 12px 16px;
   }
 
@@ -787,6 +814,7 @@ h1 em {
   .search input,
   .online-go,
   .browse-harem,
+  .browse-romance,
   .add-row button,
   .add-row select,
   .load-more,

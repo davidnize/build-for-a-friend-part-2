@@ -75,21 +75,34 @@ async function live() {
     assert(spotlight.data.item.malId === spotlightAgain.data.item.malId, "spotlight changed between requests");
     assert(spotlight.data.item.score != null, "spotlight should be a scored title");
 
+    const romance = await request("/api/romance?page=1&limit=5");
+    assert(romance.status === 200, "romance page failed");
+    assert(romance.data.total > first.data.total, "romance set should be larger than harem");
+    const found = await request("/api/catalog/search?q=Kaguya-sama");
+    assert(found.status === 200 && found.data.total > 0, "title search should find Kaguya-sama");
+    assert(spotlight.data.item.harem === true, "spotlight should stay a harem title");
+
     const db = new Client({ connectionString: DATABASE_URL });
     await db.connect();
-    const rows = await db.query("SELECT title, rating, genre_ids, ecchi, score, position FROM harem_catalog ORDER BY position ASC");
+    const rows = await db.query("SELECT title, alt_title, rating, genre_ids, ecchi, harem, score, position FROM harem_catalog ORDER BY position ASC");
     await db.end();
-    assert(rows.rows.length === first.data.total, "page total should match the cache");
+    assert(rows.rows.length === romance.data.total, "romance total should match the cache");
+    assert(rows.rows.filter(function (row) { return row.harem; }).length === first.data.total, "harem total should match the harem filter");
     rows.rows.forEach(function (row) {
       const ids = row.genre_ids || [];
       assert(ids.indexOf(12) === -1 && ids.indexOf(49) === -1, "blocked genre slipped in: " + row.title);
       assert(!/^rx\b/i.test(row.rating || ""), "Rx title slipped in: " + row.title);
     });
     assert(rows.rows.some(function (row) { return row.ecchi; }), "ecchi titles should be included");
-    const blob = rows.rows.map(function (row) { return row.title.toLowerCase(); }).join("\n");
+    const blob = rows.rows.map(function (row) { return (row.title + " " + (row.alt_title || "")).toLowerCase(); }).join("\n");
     ["nisekoi", "quintessential quintuplets", "high school dxd", "to love", "rosario", "shuffle!", "world god only knows", "love hina", "date a live"].forEach(function (name) {
       assert(blob.indexOf(name) !== -1, "missing harem title: " + name);
     });
+    ["kaguya-sama", "toradora", "horimiya", "your lie in april"].forEach(function (name) {
+      assert(blob.indexOf(name) !== -1, "missing romance title: " + name);
+    });
+    const kaguya = rows.rows.find(function (row) { return /kaguya-sama/i.test(row.title); });
+    assert(kaguya && kaguya.harem === false, "Kaguya-sama is romance, not harem");
     let previous = Infinity;
     let seenNull = false;
     rows.rows.forEach(function (row) {
@@ -101,7 +114,8 @@ async function live() {
       assert(Number(row.score) <= previous + 0.001, "scores are not descending");
       previous = Number(row.score);
     });
-    console.log("harem tests passed (" + rows.rows.length + " titles, spotlight " + spotlight.data.item.title + ")");
+    const haremCount = rows.rows.filter(function (row) { return row.harem; }).length;
+    console.log("catalog tests passed (" + rows.rows.length + " romance, " + haremCount + " harem, spotlight " + spotlight.data.item.title + ")");
   } catch (err) {
     console.error(logs);
     throw err;

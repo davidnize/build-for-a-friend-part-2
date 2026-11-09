@@ -1,15 +1,18 @@
-// Harem catalog helpers. The list comes from a Jikan-compatible API:
-// genre/theme 35 is Harem, sorted by score. Hentai (12), Erotica (49), and Rx stay out.
-// Ecchi (9) stays in.
+// Catalog helpers. Romance is Jikan genre 22. Harem is genre/theme 35.
+// The saved list is the union, sorted by score. Hentai (12), Erotica (49), and Rx stay out.
+// Ecchi (9) stays in. Harem titles are flagged so the app can spotlight them.
 
 const JIKAN_URL = "https://api.jikan.moe/v4/anime";
 const TENRAI_URL = "https://api.tenrai.org/v1/anime";
 const PAGE_LIMIT = 25;
-const REQUEST_GAP_MS = 420;
+const MAX_PAGES = 120;
+const REQUEST_GAP_MS = 380;
 const HENTAI_GENRE = 12;
 const EROTICA_GENRE = 49;
 const ECCHI_GENRE = 9;
 const HAREM_GENRE = 35;
+const ROMANCE_GENRE = 22;
+const CATALOG_VERSION = 2;
 
 function sleep(ms) {
   return new Promise(function (resolve) {
@@ -41,6 +44,10 @@ function isBlocked(anime) {
   const rating = String((anime && anime.rating) || "");
   if (/^rx\b/i.test(rating) || /hentai/i.test(rating)) return true;
   return false;
+}
+
+function isHarem(anime) {
+  return genreIds(anime).indexOf(HAREM_GENRE) !== -1;
 }
 
 function isEcchi(anime) {
@@ -81,13 +88,18 @@ function pickPoster(anime) {
 function normalizeAnime(anime) {
   if (!anime || isBlocked(anime)) return null;
   const malId = Number.isInteger(anime.mal_id) ? anime.mal_id : null;
-  const title = String(anime.title_english || anime.title || "").trim();
+  const original = String(anime.title || "").trim();
+  const english = String(anime.title_english || "").trim();
+  const title = (english || original).trim();
   if (!malId || !title) return null;
+  const altTitle = english && original && english.toLowerCase() !== original.toLowerCase() ? original.slice(0, 180) : "";
   const score = typeof anime.score === "number" && isFinite(anime.score) ? anime.score : null;
   const episodes = Number.isInteger(anime.episodes) ? anime.episodes : null;
   return {
     malId: malId,
     title: title.slice(0, 180),
+    altTitle: altTitle,
+    harem: isHarem(anime),
     score: score,
     type: String(anime.type || "Anime"),
     year: pickYear(anime),
@@ -127,21 +139,22 @@ function pickSpotlight(items, date) {
   return { week: week, item: pool[(week - 1) % pool.length] };
 }
 
-function pageUrl(host, page, sfw) {
+function pageUrl(host, genreId, page) {
   const params = new URLSearchParams({
-    genres: String(HAREM_GENRE),
+    genres: String(genreId),
     genres_exclude: HENTAI_GENRE + "," + EROTICA_GENRE,
     order_by: "score",
     sort: "desc",
-    sfw: sfw ? "true" : "false",
+    // sfw=true also hides a lot of R+ ecchi romance. Genre excludes plus the Rx filter keep adult titles out.
+    sfw: "false",
     limit: String(PAGE_LIMIT),
     page: String(page)
   });
   return host + "?" + params.toString();
 }
 
-async function fetchPage(host, page, sfw) {
-  const url = pageUrl(host, page, sfw);
+async function fetchPage(host, genreId, page) {
+  const url = pageUrl(host, genreId, page);
   for (let attempt = 0; attempt < 4; attempt++) {
     const response = await fetch(url, {
       headers: { Accept: "application/json", "User-Agent": "harem-hunter" }
@@ -165,7 +178,7 @@ async function fetchPage(host, page, sfw) {
 
 async function chooseHost() {
   try {
-    const response = await fetch(pageUrl(JIKAN_URL, 1, true), {
+    const response = await fetch(pageUrl(JIKAN_URL, ROMANCE_GENRE, 1), {
       headers: { Accept: "application/json", "User-Agent": "harem-hunter" },
       signal: AbortSignal.timeout(5000)
     });
@@ -176,18 +189,25 @@ async function chooseHost() {
   return TENRAI_URL;
 }
 
-async function pullPages(host, sfw, into) {
+function remember(into, anime, forceHarem) {
+  const item = normalizeAnime(anime);
+  if (!item) return;
+  if (forceHarem) item.harem = true;
+  const previous = into.get(item.malId);
+  if (previous && previous.harem) item.harem = true;
+  into.set(item.malId, item);
+}
+
+async function pullGenre(host, genreId, into, forceHarem) {
   let page = 1;
   let last = 1;
-  while (page <= last && page <= 40) {
-    const payload = await fetchPage(host, page, sfw);
+  while (page <= last && page <= MAX_PAGES) {
+    const payload = await fetchPage(host, genreId, page);
     const pagination = payload.pagination || {};
     last = pagination.last_visible_page || page;
     const rows = Array.isArray(payload.data) ? payload.data : [];
     rows.forEach(function (anime) {
-      const item = normalizeAnime(anime);
-      if (!item) return;
-      into.set(item.malId, item);
+      remember(into, anime, forceHarem);
     });
     if (!pagination.has_next_page || !rows.length) break;
     page += 1;
@@ -198,12 +218,9 @@ async function pullPages(host, sfw, into) {
 async function fetchCatalog() {
   const host = await chooseHost();
   const into = new Map();
-  // sfw=true drops Rx. It also drops a lot of R+ ecchi (High School DxD, To LOVE-Ru),
-  // so a second pass with the same genre filters keeps those and the safety net still
-  // removes Hentai, Erotica, and Rx.
-  await pullPages(host, true, into);
+  await pullGenre(host, ROMANCE_GENRE, into, false);
   await sleep(REQUEST_GAP_MS);
-  await pullPages(host, false, into);
+  await pullGenre(host, HAREM_GENRE, into, true);
   return sortCatalog(Array.from(into.values()));
 }
 
@@ -211,7 +228,10 @@ module.exports = {
   JIKAN_URL,
   TENRAI_URL,
   HAREM_GENRE,
+  ROMANCE_GENRE,
+  CATALOG_VERSION,
   isBlocked,
+  isHarem,
   isEcchi,
   normalizeAnime,
   sortCatalog,

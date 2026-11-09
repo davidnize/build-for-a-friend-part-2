@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
     <title>Your Harem Hunter</title>
-    <meta name="description" content="Your Harem Hunter. Find every harem anime, ranked best to worst, and keep a private list." />
+    <meta name="description" content="Your Harem Hunter. Every romance anime, with harem in the spotlight, ranked best to worst." />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23140b16'/%3E%3Cpath d='M16 25s-7.2-4.4-7.2-9.2A4.1 4.1 0 0 1 16 12a4.1 4.1 0 0 1 7.2 3.8C23.2 20.6 16 25 16 25z' fill='%23ff5a95'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,8 +18,8 @@
     <main id="auth-screen" class="auth-screen" hidden>
       <form id="auth-form" class="auth-card" data-mode="login" novalidate>
         <p class="eyebrow">Your Harem Hunter</p>
-        <h1><em>Find every</em> harem anime</h1>
-        <p class="lede">Ranked best to worst. A new account starts with a private list.</p>
+        <h1><em>Find every</em> romance</h1>
+        <p class="lede">Harem gets the crown. The rest of the romance catalog is ranked best to worst.</p>
         <div class="auth-toggle" role="group" aria-label="Account action">
           <button id="show-login" type="button" aria-pressed="true">Log in</button>
           <button id="show-signup" type="button" aria-pressed="false">Sign up</button>
@@ -40,8 +40,8 @@
     <div id="shelf" class="page" hidden>
       <header class="hero">
         <p class="eyebrow">Your Harem Hunter</p>
-        <h1><em>Find every</em> harem anime</h1>
-        <p class="lede">Ranked from best to worst. Save the ones you want. Your list stays on your account.</p>
+        <h1><em>Find every</em> romance</h1>
+        <p class="lede">Harem gets the crown. Browse the whole romance catalog, best to worst, and save the ones you want.</p>
       </header>
 
       <section id="spotlight" class="spotlight" aria-live="polite"></section>
@@ -100,10 +100,11 @@
         <div class="search-row">
           <label class="search">
             <span class="visually-hidden">Search your shelf</span>
-            <input id="search" type="search" placeholder="Search your list, or type Harem" autocomplete="off" />
+            <input id="search" type="search" placeholder="Title, or type Harem" autocomplete="off" />
           </label>
           <button id="search-online" class="online-go" type="button">Search online</button>
           <button id="browse-harem" class="browse-harem" type="button">Browse all harem</button>
+          <button id="browse-romance" class="browse-romance" type="button">Browse all romance</button>
         </div>
         <p id="status" class="status" aria-live="polite">Showing all 20 titles.</p>
       </div>
