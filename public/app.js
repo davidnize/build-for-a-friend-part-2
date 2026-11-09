@@ -417,10 +417,12 @@
     var img = document.createElement("img");
     img.className = "poster";
     img.alt = "";
+    img.loading = "lazy";
+    img.decoding = "async";
     img.referrerPolicy = "no-referrer";
     img.src = url;
     img.addEventListener("error", function () {
-      var card = img.closest(".card, .online-card");
+      var card = img.closest(".card, .online-card, .spotlight-card");
       if (card) card.classList.remove("has-poster");
       img.remove();
     });
