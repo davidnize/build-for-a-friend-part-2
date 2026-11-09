@@ -498,7 +498,7 @@
   }
 
   function catalogPageUrl(page) {
-    var limit = 20;
+    var limit = 100;
     if (onlineState.mode === "harem") return "/api/harem?page=" + page + "&limit=" + limit;
     if (onlineState.mode === "romance") return "/api/romance?page=" + page + "&limit=" + limit;
     return "/api/catalog/search?q=" + encodeURIComponent(onlineState.query) + "&page=" + page + "&limit=" + limit;
@@ -562,7 +562,7 @@
       })
       .catch(function () {
         onlineState.loadingMore = false;
-        button.textContent = "Load more";
+        button.textContent = "Load 100 more";
       });
   }
 
@@ -673,7 +673,7 @@
       "Showing " + onlineState.results.length + " of " + onlineState.total + " " + catalogLabel() + ", best to worst.";
     var button = document.getElementById("load-more");
     button.hidden = !onlineState.hasMore;
-    button.textContent = "Load more";
+    button.textContent = "Load 100 more";
   }
 
   function abortOnline() {

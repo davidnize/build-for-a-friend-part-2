@@ -129,12 +129,17 @@ function isoWeek(date) {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
+function excludedFromSpotlight(item) {
+  const title = String((item && item.title) || "") + " " + String((item && (item.altTitle || item.alt_title)) || "");
+  return /dxd/i.test(title);
+}
+
 function pickSpotlight(items, date) {
   const ranked = sortCatalog(items).filter(function (item) {
-    return item.score != null;
+    return item.score != null && !excludedFromSpotlight(item);
   });
   const pool = ranked.slice(0, 52);
-  if (!pool.length) return sortCatalog(items)[0] || null;
+  if (!pool.length) return null;
   const week = isoWeek(date || new Date());
   return { week: week, item: pool[(week - 1) % pool.length] };
 }
@@ -232,6 +237,7 @@ module.exports = {
   CATALOG_VERSION,
   isBlocked,
   isHarem,
+  excludedFromSpotlight,
   isEcchi,
   normalizeAnime,
   sortCatalog,

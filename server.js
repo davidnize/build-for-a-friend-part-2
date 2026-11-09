@@ -159,6 +159,8 @@ async function haremSpotlight(req, res) {
     `SELECT mal_id, title, score, type, year, episodes, synopsis, poster, ecchi, harem
      FROM harem_catalog
      WHERE harem = TRUE AND score IS NOT NULL
+       AND title NOT ILIKE '%dxd%'
+       AND COALESCE(alt_title, '') NOT ILIKE '%dxd%'
      ORDER BY position ASC
      LIMIT 52`
   );
@@ -184,7 +186,7 @@ async function catalogSearch(req, res) {
 
 async function catalogResponse(req, res, whereSql, extraParams) {
   await ensureHaremCatalog();
-  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 100);
   const page = Math.max(Number(req.query.page) || 1, 1);
   const offset = (page - 1) * limit;
   const extras = extraParams || [];

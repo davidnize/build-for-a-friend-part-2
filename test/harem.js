@@ -39,6 +39,14 @@ function unit() {
   assert(first.item.title === again.item.title, "spotlight should be deterministic");
   assert(first.week === week, "spotlight week should be the ISO week");
   assert(first.item.title !== "C", "unscored titles are not the weekly pick when scored ones exist");
+
+  const withoutDxD = pickSpotlight([
+    { title: "High School DxD BorN", score: 9 },
+    { title: "High School DxD", altTitle: "High School DxD New", score: 8.5 },
+    { title: "Nisekoi", score: 8 }
+  ], new Date());
+  assert(withoutDxD.item.title === "Nisekoi", "DxD should be left out of the weekly spotlight");
+  assert(!/dxd/i.test(withoutDxD.item.title), "spotlight title should not contain DxD");
 }
 
 async function request(path) {
@@ -63,10 +71,13 @@ async function live() {
   server.stderr.on("data", function (chunk) { logs += chunk; });
   try {
     await waitForHealth();
-    const first = await request("/api/harem?page=1&limit=20");
+    const first = await request("/api/harem?page=1&limit=100");
     assert(first.status === 200, "harem page failed: " + JSON.stringify(first.data));
     assert(first.data.total > 200, "expected a broad harem catalog, got " + first.data.total);
+    assert(first.data.items.length === 100, "browse should return 100 harem titles");
     assert(first.data.hasMore, "first page should offer more");
+    const romancePage = await request("/api/romance?page=1&limit=100");
+    assert(romancePage.data.items.length === 100, "browse should return 100 romance titles");
     assert(first.data.items[0].score >= first.data.items[first.data.items.length - 1].score, "page should be best to worst");
 
     const spotlight = await request("/api/harem/spotlight");
@@ -81,6 +92,7 @@ async function live() {
     const found = await request("/api/catalog/search?q=Kaguya-sama");
     assert(found.status === 200 && found.data.total > 0, "title search should find Kaguya-sama");
     assert(spotlight.data.item.harem === true, "spotlight should stay a harem title");
+    assert(!/dxd/i.test(spotlight.data.item.title), "spotlight should not be a High School DxD title");
 
     const db = new Client({ connectionString: DATABASE_URL });
     await db.connect();
