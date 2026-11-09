@@ -3,7 +3,7 @@
 const { spawn } = require("child_process");
 const path = require("path");
 const { Client } = require("pg");
-const { isBlocked, isEcchi, sortCatalog, pickSpotlight, isoWeek } = require("../harem");
+const { isBlocked, isEcchi, sortCatalog, pickSpotlight, isoWeek, browseTargetForTab } = require("../harem");
 
 const DATABASE_URL = process.env.DATABASE_URL || "postgres://anime:anime@127.0.0.1:5432/romance_anime";
 const PORT = "3457";
@@ -47,6 +47,11 @@ function unit() {
   ], new Date());
   assert(withoutDxD.item.title === "Nisekoi", "DxD should be left out of the weekly spotlight");
   assert(!/dxd/i.test(withoutDxD.item.title), "spotlight title should not contain DxD");
+  assert(browseTargetForTab("Harem") === "harem", "Harem tab should keep the harem list");
+  assert(browseTargetForTab("All") === "romance", "All tab should show the full romance list");
+  assert(browseTargetForTab("Movies") === "movies", "Movies tab should show movie-type titles");
+  assert(browseTargetForTab("Slice of Life") === "shelf", "Slice of Life should return to the shelf");
+  assert(browseTargetForTab("Love Triangle") === "shelf", "Love Triangle should return to the shelf");
 }
 
 async function request(path) {
@@ -78,6 +83,11 @@ async function live() {
     assert(first.data.hasMore, "first page should offer more");
     const romancePage = await request("/api/romance?page=1&limit=100");
     assert(romancePage.data.items.length === 100, "browse should return 100 romance titles");
+    const movies = await request("/api/romance?type=Movie&page=1&limit=100");
+    assert(movies.status === 200 && movies.data.items.length === 100, "Movies tab should load 100 movies");
+    movies.data.items.forEach(function (item) {
+      assert(item.type === "Movie", "Movies filter returned " + item.type + " for " + item.title);
+    });
     assert(first.data.items[0].score >= first.data.items[first.data.items.length - 1].score, "page should be best to worst");
 
     const spotlight = await request("/api/harem/spotlight");

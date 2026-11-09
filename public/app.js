@@ -240,7 +240,39 @@
     var button = event.target.closest("button[data-category]");
     if (!button) return;
     state.category = button.getAttribute("data-category");
+    state.query = "";
+    searchEl.value = "";
+    if (browseListOpen()) {
+      var target = browseTargetForTab(state.category);
+      if (target === "shelf") {
+        showIdleOnline();
+        renderShelf();
+        scrollToId("list");
+        return;
+      }
+      renderShelf();
+      startCatalog(target, "");
+      scrollToId("online");
+      return;
+    }
     renderShelf();
+  }
+
+  function browseListOpen() {
+    if (onlineState.phase !== "results" && onlineState.phase !== "loading" && onlineState.phase !== "empty") return false;
+    return onlineState.mode === "harem" || onlineState.mode === "romance" || onlineState.mode === "movies" || onlineState.mode === "search";
+  }
+
+  function browseTargetForTab(category) {
+    if (category === "Harem") return "harem";
+    if (category === "All") return "romance";
+    if (category === "Movies") return "movies";
+    return "shelf";
+  }
+
+  function scrollToId(id) {
+    var el = document.getElementById(id);
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: "start" });
   }
 
   function onSearchInput() {
@@ -470,13 +502,12 @@
   }
 
   function onBrowseHarem() {
-    searchEl.value = "Harem";
-    state.query = "Harem";
+    searchEl.value = "";
+    state.query = "";
     state.category = "Harem";
     renderShelf();
-    startCatalog("harem", "Harem");
-    var section = document.getElementById("online");
-    if (section && section.scrollIntoView) section.scrollIntoView({ block: "start" });
+    startCatalog("harem", "");
+    scrollToId("online");
   }
 
   function onBrowseRomance() {
@@ -501,6 +532,7 @@
     var limit = 100;
     if (onlineState.mode === "harem") return "/api/harem?page=" + page + "&limit=" + limit;
     if (onlineState.mode === "romance") return "/api/romance?page=" + page + "&limit=" + limit;
+    if (onlineState.mode === "movies") return "/api/romance?type=Movie&page=" + page + "&limit=" + limit;
     return "/api/catalog/search?q=" + encodeURIComponent(onlineState.query) + "&page=" + page + "&limit=" + limit;
   }
 
@@ -539,7 +571,7 @@
 
   function loadMoreHarem() {
     if (!onlineState.hasMore || onlineState.loadingMore) return;
-    if (onlineState.mode !== "harem" && onlineState.mode !== "romance" && onlineState.mode !== "search") return;
+    if (onlineState.mode !== "harem" && onlineState.mode !== "romance" && onlineState.mode !== "movies" && onlineState.mode !== "search") return;
     var mode = onlineState.mode;
     onlineState.loadingMore = true;
     var button = document.getElementById("load-more");
@@ -663,12 +695,19 @@
   function catalogLabel() {
     if (onlineState.mode === "harem") return "harem titles";
     if (onlineState.mode === "romance") return "romance titles";
+    if (onlineState.mode === "movies") return "movies";
     return "matches";
   }
 
+  function headingForMode() {
+    if (onlineState.mode === "harem") return "Every harem anime";
+    if (onlineState.mode === "romance") return "Every romance anime";
+    if (onlineState.mode === "movies") return "Romance movies";
+    return "Search";
+  }
+
   function updateCatalogChrome() {
-    document.getElementById("online-heading").textContent =
-      onlineState.mode === "harem" ? "Every harem anime" : onlineState.mode === "romance" ? "Every romance anime" : "Search";
+    document.getElementById("online-heading").textContent = headingForMode();
     onlineStatusEl.textContent =
       "Showing " + onlineState.results.length + " of " + onlineState.total + " " + catalogLabel() + ", best to worst.";
     var button = document.getElementById("load-more");
@@ -806,16 +845,19 @@
     var query = onlineState.query;
     var heading = document.getElementById("online-heading");
     var more = document.getElementById("load-more");
-    heading.textContent =
-      onlineState.mode === "harem" ? "Every harem anime" : onlineState.mode === "romance" ? "Every romance anime" : "Search";
-    if ((onlineState.mode === "harem" || onlineState.mode === "romance" || onlineState.mode === "search") && onlineState.phase === "loading") {
+    heading.textContent = headingForMode();
+    if ((onlineState.mode === "harem" || onlineState.mode === "romance" || onlineState.mode === "movies" || onlineState.mode === "search") && onlineState.phase === "loading") {
       onlineStatusEl.textContent = onlineState.mode === "harem"
         ? "Loading every harem title, best to worst\u2026"
         : onlineState.mode === "romance"
           ? "Loading every romance title, best to worst\u2026"
-          : "Searching the romance catalog\u2026";
-    } else if ((onlineState.mode === "harem" || onlineState.mode === "romance" || onlineState.mode === "search") && onlineState.phase === "results") {
+          : onlineState.mode === "movies"
+            ? "Loading romance movies, best to worst\u2026"
+            : "Searching the romance catalog\u2026";
+    } else if ((onlineState.mode === "harem" || onlineState.mode === "romance" || onlineState.mode === "movies" || onlineState.mode === "search") && onlineState.phase === "results") {
       updateCatalogChrome();
+    } else if (onlineState.mode === "movies" && onlineState.phase === "empty") {
+      onlineStatusEl.textContent = "No romance movies came back.";
     } else if (onlineState.mode === "harem" && onlineState.phase === "empty") {
       onlineStatusEl.textContent = "No harem titles came back.";
     } else if (onlineState.mode === "romance" && onlineState.phase === "empty") {
@@ -839,7 +881,7 @@
         "Browse all harem, or search a title on MyAnimeList. The shelf below is your list.";
     }
 
-    more.hidden = !((onlineState.mode === "harem" || onlineState.mode === "romance" || onlineState.mode === "search") && onlineState.phase === "results" && onlineState.hasMore);
+    more.hidden = !((onlineState.mode === "harem" || onlineState.mode === "romance" || onlineState.mode === "movies" || onlineState.mode === "search") && onlineState.phase === "results" && onlineState.hasMore);
     onlineResultsEl.replaceChildren();
     if (onlineState.phase !== "results") return;
     onlineState.results.forEach(function (result, index) {

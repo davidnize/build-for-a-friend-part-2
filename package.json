@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/privacy.js && node test/harem.js"
+    "test": "node test/privacy.js && node test/harem.js && node test/tabs.js"
   },
   "engines": {
     "node": ">=20"

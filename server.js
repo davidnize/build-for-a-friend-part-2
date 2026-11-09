@@ -174,6 +174,10 @@ async function haremPage(req, res) {
 }
 
 async function romancePage(req, res) {
+  if (String(req.query.type || "") === "Movie") {
+    await catalogResponse(req, res, "WHERE type = 'Movie'");
+    return;
+  }
   await catalogResponse(req, res, "");
 }
 

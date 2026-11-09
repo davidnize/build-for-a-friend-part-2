@@ -129,6 +129,13 @@ function isoWeek(date) {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
+function browseTargetForTab(category) {
+  if (category === "Harem") return "harem";
+  if (category === "All") return "romance";
+  if (category === "Movies") return "movies";
+  return "shelf";
+}
+
 function excludedFromSpotlight(item) {
   const title = String((item && item.title) || "") + " " + String((item && (item.altTitle || item.alt_title)) || "");
   return /dxd/i.test(title);
@@ -238,6 +245,7 @@ module.exports = {
   isBlocked,
   isHarem,
   excludedFromSpotlight,
+  browseTargetForTab,
   isEcchi,
   normalizeAnime,
   sortCatalog,
